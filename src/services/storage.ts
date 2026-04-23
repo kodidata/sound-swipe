@@ -4,6 +4,15 @@ const KEY_LIBRARY = "tuneswipe.library.v1";
 const KEY_SEEN = "tuneswipe.seen.v1";
 const KEY_NOPE = "tuneswipe.nope.v1";
 
+export type SwipeHistoryEntry = {
+  trackId: string;
+  action: SwipeAction;
+  /** Did the track exist in library before this swipe? */
+  wasInLibrary: boolean;
+  /** Snapshot of the saved track before this swipe (for restoring exact prior state) */
+  prevSaved: SavedTrack | null;
+};
+
 function read<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);

@@ -92,9 +92,9 @@ const Discover = () => {
           <GenreSelector value={genreId} onChange={setGenreId} />
         </div>
 
-        <div className="text-center mb-3 flex items-center justify-center gap-2 min-h-[24px]">
-          <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{genre.emoji} {genre.name}</span> · Swipe right · up · left · tap card for details
+        <div className="text-center mb-3 min-h-[18px]">
+          <p className="text-[11px] text-muted-foreground">
+            Swipe <span className="font-semibold text-foreground">→ love</span> · <span className="font-semibold text-foreground">↑ save</span> · <span className="font-semibold text-foreground">← skip</span> · tap card for full track
           </p>
         </div>
 

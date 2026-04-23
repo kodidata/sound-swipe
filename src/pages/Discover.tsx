@@ -1,13 +1,14 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { AnimatePresence } from "framer-motion";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { SwipeCard, SwipeActions } from "@/components/SwipeCard";
 import { GenreSelector } from "@/components/GenreSelector";
 import { AppHeader } from "@/components/AppHeader";
+import { TrackDetail } from "@/components/TrackDetail";
 import { GENRES, getGenre } from "@/data/genres";
 import { fetchTracksForGenre, shuffle } from "@/services/deezer";
-import { recordSwipe, getSeenIds } from "@/services/storage";
+import { recordSwipe, getSeenIds, undoSwipe, type SwipeHistoryEntry } from "@/services/storage";
 import type { Track, SwipeAction } from "@/types/music";
-import { Disc3, RefreshCw } from "lucide-react";
+import { Disc3, RefreshCw, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -16,6 +17,11 @@ const Discover = () => {
   const [queue, setQueue] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailTrack, setDetailTrack] = useState<Track | null>(null);
+
+  // Undo state: track + history of the last swipe so we can restore it
+  const [lastSwipe, setLastSwipe] = useState<{ track: Track; history: SwipeHistoryEntry } | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
 
   const genre = useMemo(() => getGenre(genreId), [genreId]);
 
@@ -41,23 +47,40 @@ const Discover = () => {
 
   useEffect(() => {
     load(genreId);
+    // Clear pending undo when genre switches
+    setLastSwipe(null);
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
   }, [genreId, load]);
 
   const handleSwipe = (action: SwipeAction) => {
     const top = queue[0];
     if (!top) return;
-    const saved = recordSwipe(top, action);
+    const { history } = recordSwipe(top, action);
     if (action === "like") toast("💖 Loved", { description: `${top.title} added to your library` });
     if (action === "super") toast("⭐ Saved", { description: `${top.title} saved for full listen` });
     setQueue((q) => q.slice(1));
+    setLastSwipe({ track: top, history });
+
+    // Auto-clear undo after 6s
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = window.setTimeout(() => setLastSwipe(null), 6000);
 
     // Prefetch when running low
     if (queue.length <= 4 && !loading) load(genreId, true);
   };
 
-  const openExternal = () => {
+  const handleUndo = () => {
+    if (!lastSwipe) return;
+    undoSwipe(lastSwipe.history);
+    setQueue((q) => [lastSwipe.track, ...q]);
+    setLastSwipe(null);
+    if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+    toast("↩️ Undone", { description: `${lastSwipe.track.title} restored` });
+  };
+
+  const openDetails = () => {
     const top = queue[0];
-    if (top) window.open(top.link, "_blank", "noopener,noreferrer");
+    if (top) setDetailTrack(top);
   };
 
   return (
@@ -69,9 +92,9 @@ const Discover = () => {
           <GenreSelector value={genreId} onChange={setGenreId} />
         </div>
 
-        <div className="text-center mb-3">
+        <div className="text-center mb-3 flex items-center justify-center gap-2 min-h-[24px]">
           <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{genre.emoji} {genre.name}</span> · Swipe right to love · up to save · left to skip
+            <span className="font-semibold text-foreground">{genre.emoji} {genre.name}</span> · Swipe right · up · left · tap card for details
           </p>
         </div>
 
@@ -106,7 +129,7 @@ const Discover = () => {
                 isTop={i === 0}
                 index={i}
                 onSwipe={handleSwipe}
-                onOpenDetails={openExternal}
+                onOpenDetails={openDetails}
               />
             ))}
           </AnimatePresence>
@@ -115,14 +138,48 @@ const Discover = () => {
         {/* Action buttons */}
         <div className="mt-5">
           <SwipeActions onAction={handleSwipe} disabled={queue.length === 0} />
-          <p className="text-center text-[11px] text-muted-foreground mt-3">
-            Full tracks open in Deezer · Previews are 9 seconds
+
+          {/* Undo bar */}
+          <div className="h-9 mt-3 flex items-center justify-center">
+            <AnimatePresence>
+              {lastSwipe && (
+                <motion.button
+                  key="undo"
+                  onClick={handleUndo}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold shadow-sm hover:shadow-card transition-shadow"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Undo {actionLabel(lastSwipe.history.action)}
+                  <span className="text-muted-foreground truncate max-w-[140px]">· {lastSwipe.track.title}</span>
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <p className="text-center text-[11px] text-muted-foreground mt-1">
+            Previews auto-play 9 sec · Tap for full track on Spotify, YouTube & more
           </p>
         </div>
       </main>
+
+      <TrackDetail
+        track={detailTrack}
+        onClose={() => setDetailTrack(null)}
+        onLike={detailTrack ? () => handleSwipe("like") : undefined}
+        onSave={detailTrack ? () => handleSwipe("super") : undefined}
+      />
     </div>
   );
 };
+
+function actionLabel(a: SwipeAction) {
+  if (a === "like") return "love";
+  if (a === "super") return "save";
+  return "skip";
+}
 
 function EmptyState({
   icon, title, hint, action,

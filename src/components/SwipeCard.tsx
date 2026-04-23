@@ -35,6 +35,29 @@ export function SwipeCard({ track, isTop, index, onSwipe, onOpenDetails }: Props
     a.crossOrigin = "anonymous";
     a.preload = "auto";
     audioRef.current = a;
+    // Auto-start preview as soon as this card is on top
+    const tryPlay = () => {
+      a.currentTime = 0;
+      a.play()
+        .then(() => {
+          setPlaying(true);
+          const startedAt = Date.now();
+          tickRef.current = window.setInterval(() => {
+            const elapsed = (Date.now() - startedAt) / 1000;
+            setProgress(Math.min(1, elapsed / PREVIEW_SECONDS));
+          }, 80);
+          stopTimerRef.current = window.setTimeout(() => {
+            a.pause();
+            setPlaying(false);
+            if (tickRef.current) window.clearInterval(tickRef.current);
+          }, PREVIEW_SECONDS * 1000);
+        })
+        .catch((e) => {
+          // Browser blocked autoplay — user can tap play
+          console.warn("Autoplay blocked", e);
+        });
+    };
+    tryPlay();
     return () => {
       a.pause();
       audioRef.current = null;

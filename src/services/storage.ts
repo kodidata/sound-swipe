@@ -4,6 +4,15 @@ const KEY_LIBRARY = "tuneswipe.library.v1";
 const KEY_SEEN = "tuneswipe.seen.v1";
 const KEY_NOPE = "tuneswipe.nope.v1";
 
+export type SwipeHistoryEntry = {
+  trackId: string;
+  action: SwipeAction;
+  /** Did the track exist in library before this swipe? */
+  wasInLibrary: boolean;
+  /** Snapshot of the saved track before this swipe (for restoring exact prior state) */
+  prevSaved: SavedTrack | null;
+};
+
 function read<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -25,7 +34,19 @@ export function saveLibrary(items: SavedTrack[]) {
   window.dispatchEvent(new CustomEvent("tuneswipe:library"));
 }
 
-export function recordSwipe(track: Track, action: SwipeAction): SavedTrack | null {
+export function recordSwipe(track: Track, action: SwipeAction): {
+  saved: SavedTrack | null;
+  history: SwipeHistoryEntry;
+} {
+  const lib = getLibrary();
+  const existingBefore = lib.find((t) => t.id === track.id) ?? null;
+  const history: SwipeHistoryEntry = {
+    trackId: track.id,
+    action,
+    wasInLibrary: !!existingBefore,
+    prevSaved: existingBefore ? { ...existingBefore } : null,
+  };
+
   const seen = new Set(read<string[]>(KEY_SEEN, []));
   seen.add(track.id);
   write(KEY_SEEN, Array.from(seen));
@@ -34,16 +55,14 @@ export function recordSwipe(track: Track, action: SwipeAction): SavedTrack | nul
     const noped = new Set(read<string[]>(KEY_NOPE, []));
     noped.add(track.id);
     write(KEY_NOPE, Array.from(noped));
-    return null;
+    return { saved: null, history };
   }
 
-  const lib = getLibrary();
-  const existing = lib.find((t) => t.id === track.id);
-  if (existing) {
-    if (action === "super") existing.superliked = true;
-    if (action === "like") existing.liked = true;
+  if (existingBefore) {
+    if (action === "super") existingBefore.superliked = true;
+    if (action === "like") existingBefore.liked = true;
     saveLibrary(lib);
-    return existing;
+    return { saved: existingBefore, history };
   }
 
   const saved: SavedTrack = {
@@ -55,7 +74,27 @@ export function recordSwipe(track: Track, action: SwipeAction): SavedTrack | nul
     plays: 0,
   };
   saveLibrary([saved, ...lib]);
-  return saved;
+  return { saved, history };
+}
+
+/** Undo the swipe described by `history`, restoring prior library/seen state. */
+export function undoSwipe(history: SwipeHistoryEntry) {
+  // Remove from seen
+  const seen = new Set(read<string[]>(KEY_SEEN, []));
+  seen.delete(history.trackId);
+  write(KEY_SEEN, Array.from(seen));
+
+  // Remove from nope set if present
+  const noped = new Set(read<string[]>(KEY_NOPE, []));
+  noped.delete(history.trackId);
+  write(KEY_NOPE, Array.from(noped));
+
+  // Restore library exactly
+  const lib = getLibrary().filter((t) => t.id !== history.trackId);
+  if (history.wasInLibrary && history.prevSaved) {
+    lib.unshift(history.prevSaved);
+  }
+  saveLibrary(lib);
 }
 
 export function getSeenIds(): Set<string> {

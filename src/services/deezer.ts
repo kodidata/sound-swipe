@@ -41,11 +41,15 @@ function mapTrack(t: ITunesTrack, genreId: string): Track | null {
   };
 }
 
-export async function fetchTracksForGenre(genre: Genre, limit = 40): Promise<Track[]> {
+export async function fetchTracksForGenre(
+  genre: Genre,
+  limit = 40,
+  country = "us"
+): Promise<Track[]> {
   try {
     const url = `${ITUNES_ENDPOINT}?term=${encodeURIComponent(
       genre.query
-    )}&media=music&entity=song&limit=${limit}`;
+    )}&media=music&entity=song&limit=${limit}&country=${encodeURIComponent(country)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { results: ITunesTrack[] };

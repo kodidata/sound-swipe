@@ -68,7 +68,7 @@ const Discover = () => {
     undoTimerRef.current = window.setTimeout(() => setLastSwipe(null), 6000);
 
     // Prefetch when running low
-    if (queue.length <= 4 && !loading) load(genreId, true);
+    if (queue.length <= 4 && !loading) load(genreId, country, true);
   };
 
   const handleUndo = () => {
@@ -89,8 +89,9 @@ const Discover = () => {
     <div className="min-h-screen flex flex-col">
       <AppHeader />
       <main className="mx-auto w-full max-w-md flex-1 flex flex-col px-4 pt-3 pb-6">
-        <div className="mb-3">
+        <div className="mb-3 space-y-2.5">
           <h1 className="sr-only">Discover music — TuneSwipe</h1>
+          <CountrySelector value={country} onChange={setCountry} />
           <GenreSelector value={genreId} onChange={setGenreId} />
         </div>
 
@@ -116,7 +117,7 @@ const Discover = () => {
               title={error ?? "You've seen them all!"}
               hint="Try another genre or refresh the queue."
               action={
-                <Button onClick={() => load(genreId)} className="gap-2">
+                <Button onClick={() => load(genreId, country)} className="gap-2">
                   <RefreshCw className="h-4 w-4" /> Refresh
                 </Button>
               }

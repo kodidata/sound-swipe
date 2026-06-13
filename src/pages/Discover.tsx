@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SwipeCard, SwipeActions } from "@/components/SwipeCard";
 import { GenreSelector } from "@/components/GenreSelector";
+import { CountrySelector } from "@/components/CountrySelector";
 import { AppHeader } from "@/components/AppHeader";
 import { TrackDetail } from "@/components/TrackDetail";
 import { GENRES, getGenre } from "@/data/genres";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 
 const Discover = () => {
   const [genreId, setGenreId] = useState<string>("all");
+  const [country, setCountry] = useState<string>(() => localStorage.getItem("ts_country") ?? "us");
   const [queue, setQueue] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,17 +27,17 @@ const Discover = () => {
 
   const genre = useMemo(() => getGenre(genreId), [genreId]);
 
-  const load = useCallback(async (gid: string, append = false) => {
+  const load = useCallback(async (gid: string, ctry: string, append = false) => {
     setLoading(true);
     setError(null);
     try {
       const g = getGenre(gid);
-      const fetched = await fetchTracksForGenre(g, 40);
+      const fetched = await fetchTracksForGenre(g, 40, ctry);
       const seen = getSeenIds();
       const fresh = shuffle(fetched.filter((t) => !seen.has(t.id)));
       setQueue((prev) => (append ? [...prev, ...fresh] : fresh));
       if (!fresh.length && !append) {
-        setError("No new tracks for this genre — try another or refresh.");
+        setError("No new tracks for this combo — try another genre or country.");
       }
     } catch (e) {
       console.error(e);
@@ -46,11 +48,11 @@ const Discover = () => {
   }, []);
 
   useEffect(() => {
-    load(genreId);
-    // Clear pending undo when genre switches
+    load(genreId, country);
+    localStorage.setItem("ts_country", country);
     setLastSwipe(null);
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
-  }, [genreId, load]);
+  }, [genreId, country, load]);
 
   const handleSwipe = (action: SwipeAction) => {
     const top = queue[0];

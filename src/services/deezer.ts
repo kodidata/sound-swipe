@@ -1,75 +1,59 @@
 import type { Track, Genre } from "@/types/music";
 
 /**
- * Deezer's API does not send CORS headers, so we route metadata requests
- * through a chain of free CORS proxies. The 30-second preview MP3s on
- * `cdnt-preview.dzcdn.net` DO send `Access-Control-Allow-Origin: *`, so they
- * play directly in the browser without a proxy.
+ * iTunes Search API — supports CORS natively and provides 30-second
+ * preview MP3s that play directly in the browser. No proxy required.
+ * Docs: https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/
  */
-const PROXIES = [
-  (url: string) => `https://cors.eu.org/${url}`,
-  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url: string) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-];
+const ITUNES_ENDPOINT = "https://itunes.apple.com/search";
 
-type DeezerTrack = {
-  id: number;
-  title: string;
-  duration: number;
-  preview: string;
-  link: string;
-  artist: { name: string };
-  album: { title: string; cover_medium: string; cover_big: string; cover_xl: string };
+type ITunesTrack = {
+  trackId: number;
+  trackName: string;
+  artistName: string;
+  collectionName?: string;
+  artworkUrl100?: string;
+  artworkUrl60?: string;
+  previewUrl?: string;
+  trackTimeMillis?: number;
+  trackViewUrl?: string;
 };
 
-async function deezerFetch<T>(path: string): Promise<T> {
-  const target = "https://api.deezer.com" + path;
-  let lastErr: unknown;
-  for (const wrap of PROXIES) {
-    try {
-      const res = await fetch(wrap(target));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()) as T;
-    } catch (e) {
-      lastErr = e;
-      // try next proxy
-    }
-  }
-  throw lastErr ?? new Error("All proxies failed");
+function upscaleArtwork(url: string | undefined, size = 600): string {
+  if (!url) return "";
+  // iTunes returns 100x100; swap for higher res
+  return url.replace(/\/\d+x\d+bb\.(jpg|png)/, `/${size}x${size}bb.$1`);
 }
 
-function mapTrack(t: DeezerTrack, genreId: string): Track | null {
-  if (!t.preview) return null;
+function mapTrack(t: ITunesTrack, genreId: string): Track | null {
+  if (!t.previewUrl) return null;
   return {
-    id: String(t.id),
-    title: t.title,
-    artist: t.artist.name,
-    album: t.album.title,
-    cover: t.album.cover_xl || t.album.cover_big,
-    coverSmall: t.album.cover_medium,
-    preview: t.preview,
-    duration: t.duration,
-    link: t.link,
+    id: String(t.trackId),
+    title: t.trackName,
+    artist: t.artistName,
+    album: t.collectionName ?? "",
+    cover: upscaleArtwork(t.artworkUrl100, 600),
+    coverSmall: t.artworkUrl100 ?? t.artworkUrl60 ?? "",
+    preview: t.previewUrl,
+    duration: Math.round((t.trackTimeMillis ?? 0) / 1000),
+    link: t.trackViewUrl ?? "",
     genreId,
   };
 }
 
-export async function fetchTracksForGenre(genre: Genre, limit = 30): Promise<Track[]> {
+export async function fetchTracksForGenre(genre: Genre, limit = 40): Promise<Track[]> {
   try {
-    if (genre.deezerId > 0) {
-      const data = await deezerFetch<{ tracks: { data: DeezerTrack[] } }>(
-        `/chart/${genre.deezerId}?limit=${limit}`
-      );
-      const out = (data.tracks?.data ?? []).map((t) => mapTrack(t, genre.id)).filter(Boolean) as Track[];
-      if (out.length) return out;
-    }
-    // Fallback: search
-    const search = await deezerFetch<{ data: DeezerTrack[] }>(
-      `/search?q=${encodeURIComponent(genre.query)}&limit=${limit}&order=RANKING`
-    );
-    return (search.data ?? []).map((t) => mapTrack(t, genre.id)).filter(Boolean) as Track[];
+    const url = `${ITUNES_ENDPOINT}?term=${encodeURIComponent(
+      genre.query
+    )}&media=music&entity=song&limit=${limit}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { results: ITunesTrack[] };
+    return (data.results ?? [])
+      .map((t) => mapTrack(t, genre.id))
+      .filter(Boolean) as Track[];
   } catch (e) {
-    console.error("Deezer fetch failed", e);
+    console.error("iTunes fetch failed", e);
     return [];
   }
 }

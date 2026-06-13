@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SwipeCard, SwipeActions } from "@/components/SwipeCard";
 import { GenreSelector } from "@/components/GenreSelector";
+import { CountrySelector } from "@/components/CountrySelector";
 import { AppHeader } from "@/components/AppHeader";
 import { TrackDetail } from "@/components/TrackDetail";
 import { GENRES, getGenre } from "@/data/genres";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 
 const Discover = () => {
   const [genreId, setGenreId] = useState<string>("all");
+  const [country, setCountry] = useState<string>(() => localStorage.getItem("ts_country") ?? "us");
   const [queue, setQueue] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,17 +27,17 @@ const Discover = () => {
 
   const genre = useMemo(() => getGenre(genreId), [genreId]);
 
-  const load = useCallback(async (gid: string, append = false) => {
+  const load = useCallback(async (gid: string, ctry: string, append = false) => {
     setLoading(true);
     setError(null);
     try {
       const g = getGenre(gid);
-      const fetched = await fetchTracksForGenre(g, 40);
+      const fetched = await fetchTracksForGenre(g, 40, ctry);
       const seen = getSeenIds();
       const fresh = shuffle(fetched.filter((t) => !seen.has(t.id)));
       setQueue((prev) => (append ? [...prev, ...fresh] : fresh));
       if (!fresh.length && !append) {
-        setError("No new tracks for this genre — try another or refresh.");
+        setError("No new tracks for this combo — try another genre or country.");
       }
     } catch (e) {
       console.error(e);
@@ -46,11 +48,11 @@ const Discover = () => {
   }, []);
 
   useEffect(() => {
-    load(genreId);
-    // Clear pending undo when genre switches
+    load(genreId, country);
+    localStorage.setItem("ts_country", country);
     setLastSwipe(null);
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
-  }, [genreId, load]);
+  }, [genreId, country, load]);
 
   const handleSwipe = (action: SwipeAction) => {
     const top = queue[0];
@@ -66,7 +68,7 @@ const Discover = () => {
     undoTimerRef.current = window.setTimeout(() => setLastSwipe(null), 6000);
 
     // Prefetch when running low
-    if (queue.length <= 4 && !loading) load(genreId, true);
+    if (queue.length <= 4 && !loading) load(genreId, country, true);
   };
 
   const handleUndo = () => {
@@ -87,8 +89,9 @@ const Discover = () => {
     <div className="min-h-screen flex flex-col">
       <AppHeader />
       <main className="mx-auto w-full max-w-md flex-1 flex flex-col px-4 pt-3 pb-6">
-        <div className="mb-3">
+        <div className="mb-3 space-y-2.5">
           <h1 className="sr-only">Discover music — TuneSwipe</h1>
+          <CountrySelector value={country} onChange={setCountry} />
           <GenreSelector value={genreId} onChange={setGenreId} />
         </div>
 
@@ -114,7 +117,7 @@ const Discover = () => {
               title={error ?? "You've seen them all!"}
               hint="Try another genre or refresh the queue."
               action={
-                <Button onClick={() => load(genreId)} className="gap-2">
+                <Button onClick={() => load(genreId, country)} className="gap-2">
                   <RefreshCw className="h-4 w-4" /> Refresh
                 </Button>
               }

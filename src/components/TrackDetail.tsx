@@ -49,7 +49,7 @@ const SERVICES: ServiceLink[] = [
   },
   {
     name: "Apple Music",
-    emoji: "",
+    emoji: "🎵",
     color: "bg-[#fa243c] text-white",
     url: (t) =>
       `https://music.apple.com/search?term=${encodeURIComponent(`${t.artist} ${t.title}`)}`,

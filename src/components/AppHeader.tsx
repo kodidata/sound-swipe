@@ -1,41 +1,49 @@
-import { Disc3, Library, Flame } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Music, Library } from "lucide-react";
+import { NavLink } from "./NavLink";
 import { cn } from "@/lib/utils";
 
-export function AppHeader() {
-  const { pathname } = useLocation();
-  return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/70 border-b border-border/50">
-      <div className="mx-auto max-w-md flex items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="relative h-8 w-8">
-            <Disc3 className="h-8 w-8 text-vinyl animate-spin-slow" strokeWidth={1.5} />
-            <div className="absolute inset-[35%] rounded-full bg-gradient-tinder" />
-          </div>
-          <span className="font-display text-xl font-black tracking-tight">
-            Tune<span className="text-gradient-tinder">Swipe</span>
-          </span>
-        </Link>
-        <nav className="flex items-center gap-1">
-          <NavBtn to="/" active={pathname === "/"} icon={<Flame className="h-4 w-4" />} label="Discover" />
-          <NavBtn to="/library" active={pathname === "/library"} icon={<Library className="h-4 w-4" />} label="Library" />
-        </nav>
-      </div>
-    </header>
-  );
-}
+export const AppHeader = () => {
+  const location = useLocation();
+  const isDiscover = location.pathname === "/";
+  const isLibrary = location.pathname === "/library";
 
-function NavBtn({ to, active, icon, label }: { to: string; active: boolean; icon: React.ReactNode; label: string }) {
   return (
-    <Link
-      to={to}
-      className={cn(
-        "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-        active ? "bg-vinyl text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-      )}
+    <motion.header
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className="sticky top-0 z-40 backdrop-blur-xl bg-background/80 border-b border-border/50 shadow-sm"
     >
-      {icon}
-      {label}
-    </Link>
+      <div className="mx-auto w-full max-w-md px-4 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo/Title */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <motion.div
+              whileHover={{ rotate: 8 }}
+              className="text-2xl font-black bg-gradient-to-r from-rose-500 to-rose-400 bg-clip-text text-transparent"
+            >
+              TuneSwipe
+            </motion.div>
+          </Link>
+
+          {/* Navigation */}
+          <nav className="flex items-center gap-1 bg-muted rounded-full p-1">
+            <NavLink
+              to="/"
+              icon={<Music className="h-4 w-4" />}
+              label="Discover"
+              active={isDiscover}
+            />
+            <NavLink
+              to="/library"
+              icon={<Library className="h-4 w-4" />}
+              label="Library"
+              active={isLibrary}
+            />
+          </nav>
+        </div>
+      </div>
+    </motion.header>
   );
 }

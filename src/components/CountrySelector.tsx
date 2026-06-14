@@ -1,148 +1,109 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { COUNTRIES, getCountry } from "@/data/countries";
+import { COUNTRIES } from "@/data/countries";
+import { ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, X, Search, Globe2 } from "lucide-react";
+import { useState, useMemo } from "react";
 
-type Props = {
+interface CountrySelectorProps {
   value: string;
-  onChange: (code: string) => void;
-};
+  onChange: (countryCode: string) => void;
+}
 
-const QUICK = ["us", "ge", "gb", "fr", "jp", "kr", "br"];
+export const CountrySelector = ({ value, onChange }: CountrySelectorProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const selectedCountry = COUNTRIES.find((c) => c.code === value);
 
-export function CountrySelector({ value, onChange }: Props) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const current = getCountry(value);
-  const quick = COUNTRIES.filter((c) => QUICK.includes(c.code)).sort(
-    (a, b) => QUICK.indexOf(a.code) - QUICK.indexOf(b.code)
-  );
-
-  const filtered = q.trim()
-    ? COUNTRIES.filter((c) =>
-        c.name.toLowerCase().includes(q.trim().toLowerCase())
-      )
-    : COUNTRIES;
-
-  const pick = (code: string) => {
-    onChange(code);
-    setOpen(false);
-    setQ("");
-  };
+  const filteredCountries = useMemo(() => {
+    return COUNTRIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.code.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [search]);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4">
-        <button
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-xs font-bold whitespace-nowrap shadow-sm shrink-0"
+    <div className="relative">
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-3 rounded-2xl bg-card hover:bg-card/80 border border-border transition-all shadow-sm flex items-center justify-between group"
+      >
+        <div className="flex items-center gap-3 text-left flex-1">
+          <span className="text-2xl">{selectedCountry?.flag}</span>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Region</p>
+            <p className="font-semibold text-foreground">{selectedCountry?.name}</p>
+          </div>
+        </div>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
         >
-          <span className="text-base leading-none">{current.flag}</span>
-          <span>{current.name}</span>
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1 shrink-0">
-          from
-        </span>
-        {quick.map((c) => {
-          const active = c.code === value;
-          return (
-            <button
-              key={c.code}
-              onClick={() => onChange(c.code)}
-              className={cn(
-                "flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-all shrink-0",
-                active
-                  ? "border-foreground bg-foreground/10 text-foreground"
-                  : "border-border bg-card/70 text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <span className="text-base leading-none">{c.flag}</span>
-              <span>{c.name.split(" / ")[0]}</span>
-            </button>
-          );
-        })}
-        <button
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground whitespace-nowrap shrink-0"
-        >
-          <Globe2 className="h-3.5 w-3.5" /> All
-        </button>
-      </div>
+          <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </motion.div>
+      </motion.button>
 
       <AnimatePresence>
-        {open && (
+        {isOpen && (
           <motion.div
-            className="fixed inset-0 z-40 flex items-end sm:items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute top-full left-0 right-0 mt-2 rounded-2xl bg-card border border-border shadow-lg z-50 overflow-hidden"
           >
-            <motion.div
-              className="absolute inset-0 bg-vinyl/70 backdrop-blur-md"
-              onClick={() => setOpen(false)}
-            />
-            <motion.div
-              className="relative w-full max-w-md bg-card rounded-t-3xl sm:rounded-3xl shadow-card border border-border/50 max-h-[85vh] overflow-hidden flex flex-col"
-              initial={{ y: 80, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 80, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 32 }}
-            >
-              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/60">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Music origin
-                  </p>
-                  <h2 className="font-display text-2xl font-black">Pick a country</h2>
+            {/* Search Input */}
+            <div className="sticky top-0 p-3 bg-card border-b border-border/50">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search countries..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Country List */}
+            <div className="max-h-64 overflow-y-auto">
+              {filteredCountries.length > 0 ? (
+                filteredCountries.map((country) => (
+                  <motion.button
+                    key={country.code}
+                    onClick={() => {
+                      onChange(country.code);
+                      setIsOpen(false);
+                      setSearch("");
+                    }}
+                    whileHover={{ backgroundColor: "hsl(var(--muted))" }}
+                    className={cn(
+                      "w-full px-4 py-3 text-left flex items-center gap-3 transition-colors border-b border-border/50 last:border-0",
+                      value === country.code && "bg-muted"
+                    )}
+                  >
+                    <span className="text-xl">{country.flag}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">{country.name}</p>
+                      <p className="text-xs text-muted-foreground">{country.code.toUpperCase()}</p>
+                    </div>
+                    {value === country.code && (
+                      <motion.div
+                        layoutId="country-check"
+                        className="w-2 h-2 rounded-full bg-rose-500"
+                      />
+                    )}
+                  </motion.button>
+                ))
+              ) : (
+                <div className="px-4 py-8 text-center text-muted-foreground">
+                  No countries found
                 </div>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="h-9 w-9 rounded-full bg-muted hover:bg-muted/70 flex items-center justify-center"
-                  aria-label="Close"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="px-4 pt-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    autoFocus
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search country..."
-                    className="w-full rounded-full bg-muted/60 border border-border pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/30"
-                  />
-                </div>
-              </div>
-              <div className="overflow-y-auto p-3 grid grid-cols-2 gap-2">
-                {filtered.map((c) => {
-                  const active = c.code === value;
-                  return (
-                    <button
-                      key={c.code}
-                      onClick={() => pick(c.code)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-2xl px-3 py-2.5 text-left transition-all border",
-                        active
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-card hover:bg-muted/50"
-                      )}
-                    >
-                      <span className="text-2xl">{c.flag}</span>
-                      <span className="font-semibold text-sm truncate">{c.name}</span>
-                    </button>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <p className="col-span-2 text-center text-sm text-muted-foreground py-6">
-                    No countries match "{q}"
-                  </p>
-                )}
-              </div>
-            </motion.div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

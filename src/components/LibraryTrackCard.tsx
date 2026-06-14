@@ -1,106 +1,128 @@
-import { Heart, ExternalLink, Star, Trash2, Play, Pause } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import type { SavedTrack } from "@/types/music";
-import { rateTrack, removeTrack, incrementPlays } from "@/services/storage";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Heart, Bookmark, Play, Pause } from "lucide-react";
+import type { LibraryTrack } from "@/hooks/useLibrary";
 import { cn } from "@/lib/utils";
 
-type Props = { track: SavedTrack };
+interface LibraryTrackCardProps {
+  track: LibraryTrack;
+}
 
-export function LibraryTrackCard({ track }: Props) {
-  const [playing, setPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+export const LibraryTrackCard = ({ track }: LibraryTrackCardProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  useEffect(() => {
-    return () => audioRef.current?.pause();
-  }, []);
-
-  const toggle = () => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(track.preview);
-      audioRef.current.addEventListener("ended", () => setPlaying(false));
-    }
-    if (playing) {
-      audioRef.current.pause();
-      setPlaying(false);
-    } else {
-      audioRef.current.play().then(() => {
-        setPlaying(true);
-        incrementPlays(track.id);
-      });
-    }
+  const handlePlayPause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPlaying(!isPlaying);
   };
 
   return (
-    <div className="group flex items-center gap-3 rounded-2xl bg-card p-3 shadow-sm border border-border/60 hover:shadow-card transition-shadow">
-      <button
-        onClick={toggle}
-        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl"
-        aria-label={playing ? "Pause" : "Play"}
-      >
-        <img src={track.coverSmall} alt="" className="h-full w-full object-cover" />
-        <div className="absolute inset-0 flex items-center justify-center bg-vinyl/40 opacity-0 group-hover:opacity-100 transition-opacity">
-          {playing ? <Pause className="h-6 w-6 text-white" fill="white" /> : <Play className="h-6 w-6 text-white" fill="white" />}
-        </div>
-        {track.superliked && (
-          <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-superlike flex items-center justify-center">
-            <Star className="h-3 w-3 text-vinyl" fill="currentColor" />
-          </div>
-        )}
-      </button>
-
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold truncate text-sm">{track.title}</p>
-        <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
-        <RatingStars trackId={track.id} value={track.rating} />
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 shadow-md hover:shadow-lg transition-shadow"
+    >
+      {/* Background Image */}
+      <div className="absolute inset-0">
+        <img
+          src={track.album.cover_small}
+          alt={track.title}
+          className="w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 to-slate-800/70" />
       </div>
 
-      <div className="flex flex-col gap-1 shrink-0">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8"
-          onClick={() => window.open(track.link, "_blank", "noopener,noreferrer")}
-          aria-label="Open in Deezer"
+      {/* Content */}
+      <div className="relative p-4 flex items-center gap-4 h-24 group-hover:h-28 transition-all duration-300">
+        {/* Album Art */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden shadow-lg"
         >
-          <ExternalLink className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          onClick={() => removeTrack(track.id)}
-          aria-label="Remove"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function RatingStars({ trackId, value }: { trackId: string; value: number }) {
-  const [hover, setHover] = useState(0);
-  const display = hover || value;
-  return (
-    <div className="mt-1 flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          onMouseEnter={() => setHover(n)}
-          onMouseLeave={() => setHover(0)}
-          onClick={() => rateTrack(trackId, n === value ? 0 : n)}
-          aria-label={`Rate ${n} star${n > 1 ? "s" : ""}`}
-        >
-          <Heart
-            className={cn(
-              "h-3.5 w-3.5 transition-colors",
-              n <= display ? "text-like" : "text-muted-foreground/40"
-            )}
-            fill={n <= display ? "currentColor" : "none"}
+          <img
+            src={track.album.cover_small}
+            alt={track.title}
+            className="w-full h-full object-cover"
           />
-        </button>
-      ))}
-    </div>
+        </motion.div>
+
+        {/* Track Info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-white/70 uppercase tracking-wide truncate">
+            {track.artist.name}
+          </p>
+          <h3 className="text-sm font-bold text-white truncate mt-0.5">{track.title}</h3>
+          <p className="text-xs text-white/60 truncate mt-1">{track.album.title}</p>
+
+          {/* Rating Display */}
+          <div className="flex items-center gap-1 mt-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className={cn(
+                  "h-1.5 rounded-full transition-colors",
+                  i < track.rating
+                    ? "w-3 bg-rose-500"
+                    : "w-2 bg-white/20"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Status Badges */}
+        <div className="flex flex-col gap-2">
+          {track.liked && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-rose-500/90 shadow-lg"
+              title="Loved"
+            >
+              <Heart className="h-4 w-4 text-white fill-current" />
+            </motion.div>
+          )}
+          {track.superliked && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/90 shadow-lg"
+              title="Saved"
+            >
+              <Bookmark className="h-4 w-4 text-white fill-current" />
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Hover Action */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isHovered ? 1 : 0 }}
+        className="absolute top-2 right-2 z-10"
+      >
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handlePlayPause}
+          className="h-10 w-10 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-lg transition-colors"
+          aria-label={isPlaying ? "Pause" : "Play"}
+        >
+          {isPlaying ? (
+            <Pause className="h-5 w-5 text-slate-900" />
+          ) : (
+            <Play className="h-5 w-5 text-slate-900 ml-0.5" />
+          )}
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }

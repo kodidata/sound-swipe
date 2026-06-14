@@ -1,334 +1,253 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, Bookmark, Play, Pause, ExternalLink, Disc3 } from "lucide-react";
+import { motion } from "framer-motion";
 import type { Track, SwipeAction } from "@/types/music";
-import { Button } from "@/components/ui/button";
+import { Maximize2, Play, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const PREVIEW_SECONDS = 9;
-
-type Props = {
+interface SwipeCardProps {
   track: Track;
   isTop: boolean;
   index: number;
   onSwipe: (action: SwipeAction) => void;
   onOpenDetails: () => void;
-};
+}
 
-export function SwipeCard({ track, isTop, index, onSwipe, onOpenDetails }: Props) {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 0, 300], [-18, 0, 18]);
-  const likeOpacity = useTransform(x, [20, 140], [0, 1]);
-  const nopeOpacity = useTransform(x, [-140, -20], [1, 0]);
-  const superOpacity = useTransform(y, [-140, -20], [1, 0]);
+const SWIPE_THRESHOLD = 50;
+const ROTATION_RANGE = 10;
+const SWIPE_VELOCITY_THRESHOLD = 500;
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0); // 0..1 of 9 sec
-  const stopTimerRef = useRef<number | null>(null);
-  const tickRef = useRef<number | null>(null);
+export const SwipeCard = ({
+  track,
+  isTop,
+  index,
+  onSwipe,
+  onOpenDetails,
+}: SwipeCardProps) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    if (!isTop) return;
-    const a = new Audio(track.preview);
-    a.crossOrigin = "anonymous";
-    a.preload = "auto";
-    audioRef.current = a;
-    // Auto-start preview as soon as this card is on top
-    const tryPlay = () => {
-      a.currentTime = 0;
-      a.play()
-        .then(() => {
-          setPlaying(true);
-          const startedAt = Date.now();
-          tickRef.current = window.setInterval(() => {
-            const elapsed = (Date.now() - startedAt) / 1000;
-            setProgress(Math.min(1, elapsed / PREVIEW_SECONDS));
-          }, 80);
-          stopTimerRef.current = window.setTimeout(() => {
-            a.pause();
-            setPlaying(false);
-            if (tickRef.current) window.clearInterval(tickRef.current);
-          }, PREVIEW_SECONDS * 1000);
-        })
-        .catch((e) => {
-          // Browser blocked autoplay — user can tap play
-          console.warn("Autoplay blocked", e);
-        });
-    };
-    tryPlay();
-    return () => {
-      a.pause();
-      audioRef.current = null;
-      if (stopTimerRef.current) window.clearTimeout(stopTimerRef.current);
-      if (tickRef.current) window.clearInterval(tickRef.current);
-    };
-  }, [isTop, track.preview]);
-
-  const startPlayback = async () => {
-    const a = audioRef.current;
-    if (!a) return;
-    try {
-      a.currentTime = 0;
-      await a.play();
-      setPlaying(true);
-      const startedAt = Date.now();
-      tickRef.current = window.setInterval(() => {
-        const elapsed = (Date.now() - startedAt) / 1000;
-        setProgress(Math.min(1, elapsed / PREVIEW_SECONDS));
-      }, 80);
-      stopTimerRef.current = window.setTimeout(() => {
-        a.pause();
-        setPlaying(false);
-        if (tickRef.current) window.clearInterval(tickRef.current);
-      }, PREVIEW_SECONDS * 1000);
-    } catch (e) {
-      console.warn("Audio play blocked", e);
+    if (!isTop && isPlaying) {
+      setIsPlaying(false);
+      audioRef.current?.pause();
     }
+  }, [isTop, isPlaying]);
+
+  const handlePlayPause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
   };
 
-  const stopPlayback = () => {
-    audioRef.current?.pause();
-    setPlaying(false);
-    setProgress(0);
-    if (stopTimerRef.current) window.clearTimeout(stopTimerRef.current);
-    if (tickRef.current) window.clearInterval(tickRef.current);
+  const handleDragEnd = (
+    _event: any,
+    info: { offset: { x: number; y: number }; velocity: { x: number } }
+  ) => {
+    const swipe = Math.abs(info.offset.x);
+    const velocity = Math.abs(info.velocity.x);
+    const isSwipeRight = info.offset.x > 0;
+    const isSwipeUp = Math.abs(info.offset.y) > Math.abs(info.offset.x) && info.offset.y < -50;
+
+    if (swipe > SWIPE_THRESHOLD || velocity > SWIPE_VELOCITY_THRESHOLD) {
+      if (isSwipeUp) {
+        onSwipe("super");
+      } else if (isSwipeRight) {
+        onSwipe("like");
+      } else {
+        onSwipe("pass");
+      }
+    }
+    setIsDragging(false);
   };
-
-  const togglePlay = () => (playing ? stopPlayback() : startPlayback());
-
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    const { offset, velocity } = info;
-    const swipePower = Math.abs(offset.x) * Math.abs(velocity.x);
-    const upPower = Math.abs(offset.y) * Math.abs(velocity.y);
-
-    if (offset.y < -120 && upPower > 5000 || offset.y < -180) {
-      stopPlayback();
-      onSwipe("super");
-      return;
-    }
-    if (offset.x > 120 || swipePower > 8000 && offset.x > 0) {
-      stopPlayback();
-      onSwipe("like");
-      return;
-    }
-    if (offset.x < -120 || swipePower > 8000 && offset.x < 0) {
-      stopPlayback();
-      onSwipe("nope");
-      return;
-    }
-  };
-
-  // Auto-stop progress visual when audio ends naturally
-  useEffect(() => {
-    if (!playing) setProgress(0);
-  }, [playing]);
 
   return (
     <motion.div
-      className={cn(
-        "absolute inset-0 select-none touch-none",
-        !isTop && "pointer-events-none"
-      )}
-      style={{
-        x: isTop ? x : 0,
-        y: isTop ? y : 0,
-        rotate: isTop ? rotate : 0,
-        zIndex: 10 - index,
-      }}
+      ref={dragRef}
       drag={isTop}
-      dragElastic={0.6}
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.2}
+      dragMomentum={false}
+      onDragStart={() => setIsDragging(true)}
       onDragEnd={handleDragEnd}
-      initial={{ scale: 0.94, y: index * 8, opacity: 0 }}
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{
-        scale: isTop ? 1 : 1 - index * 0.04,
-        y: isTop ? 0 : index * 10,
-        opacity: 1,
+        opacity: isTop ? 1 : 0.5 + index * 0.15,
+        scale: 1 - index * 0.05,
+        y: index * 10,
+        zIndex: 100 - index,
       }}
-      exit={{
-        x: x.get() > 0 ? 600 : x.get() < 0 ? -600 : 0,
-        y: y.get() < -50 ? -800 : 0,
-        rotate: x.get() > 0 ? 30 : x.get() < 0 ? -30 : 0,
-        opacity: 0,
-        transition: { duration: 0.35 },
-      }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+      exit={{ opacity: 0, scale: 0.8, y: 100 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className={cn(
+        "absolute w-full h-[520px] rounded-3xl overflow-hidden cursor-grab active:cursor-grabbing",
+        "shadow-lg transition-shadow duration-300",
+        isDragging && "shadow-2xl"
+      )}
     >
-      <div className="relative h-full w-full overflow-hidden rounded-[2rem] paper-card border border-border/40">
-        {/* Cover background */}
-        <div className="absolute inset-0">
-          <img
-            src={track.cover}
-            alt={`${track.title} by ${track.artist}`}
-            className="h-full w-full object-cover"
-            draggable={false}
+      {/* Background Image with Overlay */}
+      <div className="relative w-full h-full bg-gradient-to-br from-slate-900 to-slate-800">
+        <img
+          src={track.album.cover_medium}
+          alt={track.title}
+          className="w-full h-full object-cover"
+          draggable={false}
+        />
+        {/* Gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+
+        {/* Audio preview */}
+        {track.preview && (
+          <audio
+            ref={audioRef}
+            src={track.preview}
+            onEnded={() => setIsPlaying(false)}
+            className="hidden"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-vinyl via-vinyl/40 to-transparent" />
-        </div>
+        )}
 
-        {/* Vinyl spinning out from behind cover */}
-        <motion.div
-          className="absolute -right-20 top-8 h-44 w-44 rounded-full vinyl-disc"
-          animate={{ rotate: playing ? 360 : 0 }}
-          transition={{
-            duration: 4,
-            ease: "linear",
-            repeat: playing ? Infinity : 0,
-          }}
-        >
-          <div className="absolute inset-[38%] rounded-full vinyl-label flex items-center justify-center">
-            <Disc3 className="h-4 w-4 text-primary-foreground/80" />
-          </div>
-        </motion.div>
-
-        {/* LIKE / NOPE / SUPER badges */}
-        <motion.div
-          style={{ opacity: likeOpacity }}
-          className="absolute top-10 left-6 -rotate-12 rounded-xl border-4 border-like px-4 py-2 text-2xl font-black tracking-wider text-like font-display"
-        >
-          LOVE IT
-        </motion.div>
-        <motion.div
-          style={{ opacity: nopeOpacity }}
-          className="absolute top-10 right-6 rotate-12 rounded-xl border-4 border-foreground/80 px-4 py-2 text-2xl font-black tracking-wider text-foreground font-display"
-        >
-          SKIP
-        </motion.div>
-        <motion.div
-          style={{ opacity: superOpacity }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl border-4 border-superlike px-6 py-3 text-3xl font-black tracking-wider text-superlike font-display"
-        >
-          SAVE ★
-        </motion.div>
-
-        {/* Play button overlay */}
-        <button
-          onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center group"
-          aria-label={playing ? "Pause preview" : "Play 9 second preview"}
-        >
-          <div
-            className={cn(
-              "flex h-20 w-20 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow-card transition-transform",
-              "group-hover:scale-110 group-active:scale-95",
-              playing && "animate-pulse-glow"
+        {/* Content */}
+        <div className="absolute inset-0 flex flex-col justify-between p-6">
+          {/* Top Action Buttons */}
+          <div className="flex items-center justify-between">
+            {/* Play/Pause Button */}
+            {track.preview && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handlePlayPause}
+                className="h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                aria-label={isPlaying ? "Pause preview" : "Play preview"}
+              >
+                {isPlaying ? (
+                  <Pause className="h-5 w-5 text-slate-900" />
+                ) : (
+                  <Play className="h-5 w-5 text-slate-900 ml-0.5" />
+                )}
+              </motion.button>
             )}
-          >
-            {playing ? (
-              <Pause className="h-9 w-9 text-foreground" />
-            ) : (
-              <Play className="h-9 w-9 text-foreground translate-x-0.5" fill="currentColor" />
-            )}
-          </div>
-        </button>
 
-        {/* Bottom info */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 text-primary-foreground">
-          {/* 9-sec progress */}
-          <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
-            <div
-              className="h-full bg-gradient-tinder transition-[width] duration-75"
-              style={{ width: `${progress * 100}%` }}
-            />
-          </div>
-          <div className="flex items-end justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="font-display text-3xl font-bold leading-tight drop-shadow-lg truncate">
-                {track.title}
-              </h2>
-              <p className="mt-1 text-base font-medium text-white/85 truncate">
-                {track.artist}
-              </p>
-              <p className="mt-0.5 text-xs text-white/60 truncate">
-                {track.album}
-              </p>
-            </div>
-            <Button
-              size="icon"
-              variant="secondary"
-              onClick={(e) => {
-                e.stopPropagation();
+            {/* Expand Details Button */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setIsPlaying(false);
+                audioRef.current?.pause();
                 onOpenDetails();
               }}
-              className="rounded-full shrink-0 shadow-lg"
-              aria-label="Open full track"
+              className="h-12 w-12 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+              aria-label="View full track details"
             >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
+              <Maximize2 className="h-5 w-5 text-slate-900" />
+            </motion.button>
+          </div>
+
+          {/* Bottom Track Info */}
+          <div className="space-y-3">
+            {/* Artist Name */}
+            <div>
+              <p className="text-sm font-semibold text-white/80 uppercase tracking-wide">
+                {track.artist.name}
+              </p>
+            </div>
+
+            {/* Track Title */}
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black text-white leading-tight line-clamp-2">
+                {track.title}
+              </h2>
+              <p className="text-sm text-white/70 line-clamp-1">{track.album.title}</p>
+            </div>
+
+            {/* Swipe Instructions */}
+            <div className="pt-2 space-y-1 text-xs text-white/70">
+              <p>
+                <span className="inline-block bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full mr-2">
+                  👉
+                </span>
+                <span className="font-semibold text-white">Love</span>
+              </p>
+              <p>
+                <span className="inline-block bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full mr-2">
+                  👆
+                </span>
+                <span className="font-semibold text-white">Save</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
     </motion.div>
   );
-}
-
-type ActionsProps = {
-  onAction: (a: SwipeAction) => void;
-  disabled?: boolean;
 };
 
-export function SwipeActions({ onAction, disabled }: ActionsProps) {
+interface SwipeActionsProps {
+  onAction: (action: SwipeAction) => void;
+  disabled: boolean;
+}
+
+export const SwipeActions = ({ onAction, disabled }: SwipeActionsProps) => {
   return (
-    <div className="flex items-center justify-center gap-5">
-      <ActionButton
-        onClick={() => onAction("nope")}
+    <div className="flex gap-3 justify-center">
+      {/* Pass Button */}
+      <motion.button
+        whileHover={!disabled ? { scale: 1.08, y: -2 } : {}}
+        whileTap={!disabled ? { scale: 0.95 } : {}}
+        onClick={() => onAction("pass")}
         disabled={disabled}
-        label="Skip"
-        className="h-14 w-14 border-foreground/20 text-foreground hover:border-foreground hover:bg-foreground hover:text-background"
+        className={cn(
+          "h-14 w-14 rounded-full shadow-lg font-bold text-lg transition-all",
+          "flex items-center justify-center",
+          disabled
+            ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+            : "bg-slate-200 text-slate-700 hover:bg-slate-300 active:shadow-md"
+        )}
+        aria-label="Skip track"
       >
-        <X className="h-7 w-7" strokeWidth={3} />
-      </ActionButton>
+        ✕
+      </motion.button>
 
-      <ActionButton
-        onClick={() => onAction("super")}
-        disabled={disabled}
-        label="Save for later"
-        className="h-16 w-16 border-superlike text-superlike hover:bg-superlike hover:text-vinyl shadow-glow-gold"
-      >
-        <Bookmark className="h-7 w-7" fill="currentColor" />
-      </ActionButton>
-
-      <ActionButton
+      {/* Like Button */}
+      <motion.button
+        whileHover={!disabled ? { scale: 1.12, y: -4 } : {}}
+        whileTap={!disabled ? { scale: 0.93 } : {}}
         onClick={() => onAction("like")}
         disabled={disabled}
-        label="Love it"
-        className="h-14 w-14 border-like text-like hover:bg-like hover:text-primary-foreground shadow-glow-like"
+        className={cn(
+          "h-16 w-16 rounded-full shadow-lg font-bold text-2xl transition-all",
+          "flex items-center justify-center transform",
+          disabled
+            ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+            : "bg-gradient-to-br from-rose-400 to-rose-500 text-white hover:shadow-xl active:shadow-md"
+        )}
+        aria-label="Love track"
       >
-        <Heart className="h-7 w-7" fill="currentColor" />
-      </ActionButton>
+        ❤️
+      </motion.button>
+
+      {/* Save Button */}
+      <motion.button
+        whileHover={!disabled ? { scale: 1.08, y: -2 } : {}}
+        whileTap={!disabled ? { scale: 0.95 } : {}}
+        onClick={() => onAction("super")}
+        disabled={disabled}
+        className={cn(
+          "h-14 w-14 rounded-full shadow-lg font-bold text-lg transition-all",
+          "flex items-center justify-center",
+          disabled
+            ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+            : "bg-gradient-to-br from-amber-400 to-amber-500 text-white hover:bg-amber-500 active:shadow-md"
+        )}
+        aria-label="Save track"
+      >
+        ⭐
+      </motion.button>
     </div>
   );
-}
-
-function ActionButton({
-  children,
-  onClick,
-  disabled,
-  label,
-  className,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  label: string;
-  className?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className={cn(
-        "flex items-center justify-center rounded-full border-2 bg-card transition-all duration-200",
-        "active:scale-90 disabled:opacity-40 disabled:pointer-events-none",
-        className
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-export { AnimatePresence };
+};

@@ -59,7 +59,7 @@ export function CountrySelector({ value, onChange }: Props) {
               )}
             >
               <span className="text-base leading-none">{c.flag}</span>
-              <span>{c.name.split(" / ")[0]}</span>
+              <span className="truncate">{c.name}</span>
             </button>
           );
         })}
@@ -117,7 +117,7 @@ export function CountrySelector({ value, onChange }: Props) {
                   />
                 </div>
               </div>
-              <div className="overflow-y-auto p-3 grid grid-cols-2 gap-2">
+              <div className="overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {filtered.map((c) => {
                   const active = c.code === value;
                   return (
@@ -132,7 +132,7 @@ export function CountrySelector({ value, onChange }: Props) {
                       )}
                     >
                       <span className="text-2xl">{c.flag}</span>
-                      <span className="font-semibold text-sm truncate">{c.name}</span>
+                      <span className="font-semibold text-sm">{c.name}</span>
                     </button>
                   );
                 })}

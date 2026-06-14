@@ -47,8 +47,11 @@ export function GenreSelector({ value, onChange }: Props) {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">
                   Now playing genre
                 </p>
-                <p className="font-display text-xl font-black truncate leading-tight">
+                <p className="font-display text-xl font-black leading-tight">
                   {current.name}
+                </p>
+                <p className="text-[11px] opacity-80 leading-tight mt-0.5">
+                  {current.description}
                 </p>
               </div>
             </div>
@@ -137,23 +140,26 @@ export function GenreSelector({ value, onChange }: Props) {
                       onClick={() => handlePick(g.id)}
                       whileTap={{ scale: 0.96 }}
                       className={cn(
-                        "relative aspect-[5/3] overflow-hidden rounded-2xl text-left p-3 shadow-sm",
+                        "relative min-h-[110px] overflow-hidden rounded-2xl text-left p-3 shadow-sm",
                         "bg-gradient-to-br text-primary-foreground transition-all",
                         g.gradient,
                         active && "ring-4 ring-foreground ring-offset-2 ring-offset-card"
                       )}
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-white/10" />
-                      <div className="relative h-full flex flex-col justify-between">
+                      <div className="relative flex flex-col justify-between h-full">
                         <span className="text-3xl drop-shadow" aria-hidden>
                           {g.emoji}
                         </span>
-                        <div>
+                        <div className="mt-2">
                           <p className="font-display text-base font-black leading-tight drop-shadow">
                             {g.name}
                           </p>
+                          <p className="text-[10px] leading-tight opacity-90 mt-1 line-clamp-2">
+                            {g.description}
+                          </p>
                           {active && (
-                            <p className="text-[10px] font-bold uppercase tracking-wider opacity-90 mt-0.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider opacity-90 mt-1.5">
                               ● Selected
                             </p>
                           )}

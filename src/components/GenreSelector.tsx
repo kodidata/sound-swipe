@@ -9,14 +9,13 @@ type Props = {
   onChange: (id: string) => void;
 };
 
-// Quick-access pills shown inline (most popular)
 const QUICK_IDS = ["all", "pop", "rock", "rap", "electronic", "indie", "lofi"];
 
 export function GenreSelector({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const current = getGenre(value);
   const quick = GENRES.filter((g) => QUICK_IDS.includes(g.id)).sort(
-    (a, b) => QUICK_IDS.indexOf(a.id) - QUICK_IDS.indexOf(b.id)
+    (a, b) => QUICK_IDS.indexOf(a.id) - QUICK_IDS.indexOf(b.id),
   );
 
   const handlePick = (id: string) => {
@@ -26,14 +25,14 @@ export function GenreSelector({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2.5">
-      {/* Hero current-genre pill + "Browse all" trigger */}
       <div className="flex items-stretch gap-2">
         <button
+          type="button"
           onClick={() => setOpen(true)}
           className={cn(
             "group relative flex-1 overflow-hidden rounded-2xl px-4 py-3 text-left shadow-card",
             "bg-gradient-to-r text-primary-foreground transition-transform active:scale-[0.98]",
-            current.gradient
+            current.gradient,
           )}
           aria-label="Change genre"
         >
@@ -59,7 +58,6 @@ export function GenreSelector({ value, onChange }: Props) {
         </button>
       </div>
 
-      {/* Quick-access horizontal pills */}
       <div className="-mx-4 overflow-x-auto px-4 scrollbar-none">
         <div className="flex gap-1.5 w-max pb-1">
           {quick.map((g) => {
@@ -67,12 +65,13 @@ export function GenreSelector({ value, onChange }: Props) {
             return (
               <button
                 key={g.id}
+                type="button"
                 onClick={() => onChange(g.id)}
                 className={cn(
                   "relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all whitespace-nowrap border",
                   active
                     ? "border-foreground bg-foreground text-background shadow-sm"
-                    : "border-border bg-card/80 text-foreground hover:bg-card"
+                    : "border-border bg-card/80 text-foreground hover:bg-card",
                 )}
               >
                 <span aria-hidden>{g.emoji}</span>
@@ -80,16 +79,17 @@ export function GenreSelector({ value, onChange }: Props) {
               </button>
             );
           })}
+
           <button
+            type="button"
             onClick={() => setOpen(true)}
-            className="flex items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground/40 whitespace-nowrap transition-colors"
+            className="flex items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground"
           >
             <Sparkles className="h-3 w-3" /> All genres
           </button>
         </div>
       </div>
 
-      {/* Bottom-sheet genre grid */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -105,56 +105,66 @@ export function GenreSelector({ value, onChange }: Props) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
+
             <motion.div
-              className="relative w-full max-w-md bg-card rounded-t-3xl sm:rounded-3xl shadow-card border border-border/50 max-h-[85vh] overflow-hidden flex flex-col"
+              className="relative w-full max-w-md sm:max-w-lg bg-card rounded-t-3xl sm:rounded-3xl shadow-card border border-border/50 max-h-[85vh] overflow-hidden flex flex-col"
               initial={{ y: 80, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 32 }}
             >
-              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/60">
-                <div>
+              <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-border/60">
+                <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                     Pick your vibe
                   </p>
-                  <h2 className="font-display text-2xl font-black">All Genres</h2>
+                  <h2 className="font-display text-xl sm:text-2xl font-black leading-tight truncate">
+                    All Genres
+                  </h2>
                 </div>
+
                 <button
+                  type="button"
                   onClick={() => setOpen(false)}
-                  className="h-9 w-9 rounded-full bg-muted hover:bg-muted/70 flex items-center justify-center"
+                  className="h-9 w-9 rounded-full bg-muted hover:bg-muted/70 flex items-center justify-center shrink-0"
                   aria-label="Close"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5 p-4 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 overflow-y-auto">
                 {GENRES.map((g) => {
                   const active = g.id === value;
+
                   return (
                     <motion.button
                       key={g.id}
+                      type="button"
                       onClick={() => handlePick(g.id)}
                       whileTap={{ scale: 0.96 }}
                       className={cn(
-                        "relative aspect-[5/3] overflow-hidden rounded-2xl text-left p-3 shadow-sm",
+                        "relative min-h-[118px] overflow-hidden rounded-2xl text-left p-3 shadow-sm",
                         "bg-gradient-to-br text-primary-foreground transition-all",
                         g.gradient,
-                        active && "ring-4 ring-foreground ring-offset-2 ring-offset-card"
+                        active && "ring-4 ring-foreground ring-offset-2 ring-offset-card",
                       )}
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-white/10" />
-                      <div className="relative h-full flex flex-col justify-between">
+
+                      <div className="relative h-full flex flex-col justify-between gap-2">
                         <span className="text-3xl drop-shadow" aria-hidden>
                           {g.emoji}
                         </span>
-                        <div>
-                          <p className="font-display text-base font-black leading-tight drop-shadow">
+
+                        <div className="min-w-0">
+                          <p className="font-display text-base sm:text-lg font-black leading-tight drop-shadow truncate">
                             {g.name}
                           </p>
+
                           {active && (
-                            <p className="text-[10px] font-bold uppercase tracking-wider opacity-90 mt-0.5">
-                              ● Selected
+                            <p className="text-[10px] font-bold uppercase tracking-wider opacity-90 mt-1">
+                              Selected
                             </p>
                           )}
                         </div>

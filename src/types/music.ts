@@ -7,6 +7,7 @@ export type Genre = {
   /** Fallback search query if chart is empty */
   query: string;
   gradient: string; // tailwind class
+  description: string;
 };
 
 export type Track = {

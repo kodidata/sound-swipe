@@ -178,6 +178,15 @@
   .premium-ring {
     box-shadow: 0 0 0 1px hsl(var(--border)), 0 12px 30px -18px hsl(var(--foreground) / 0.35);
   }
+
+  .marquee-track {
+    animation: marqueeScroll 30s linear infinite;
+    will-change: transform;
+  }
+
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
 }
 
 @layer utilities {
@@ -198,4 +207,9 @@
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 20px hsl(354 84% 57% / 0.3); }
   50% { box-shadow: 0 0 40px hsl(354 84% 57% / 0.7); }
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }

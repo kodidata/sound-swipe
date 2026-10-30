@@ -18,6 +18,7 @@ export function CountrySelector({ value, onChange }: Props) {
   const quick = COUNTRIES.filter((c) => QUICK.includes(c.code)).sort(
     (a, b) => QUICK.indexOf(a.code) - QUICK.indexOf(b.code),
   );
+  const marqueeCountries = [...COUNTRIES, ...COUNTRIES];
 
   const filtered = q.trim()
     ? COUNTRIES.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()))
@@ -31,7 +32,40 @@ export function CountrySelector({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 pb-0.5">
+      <div className="relative overflow-hidden -mx-4 px-4">
+        <div className="marquee-track flex w-max items-center gap-2 py-1">
+          {[...quick, ...quick].map((c, index) => {
+            const active = c.code === value;
+            return (
+              <button
+                key={`${c.code}-${index}`}
+                type="button"
+                onClick={() => onChange(c.code)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap shrink-0",
+                  active
+                    ? "border-foreground bg-foreground/10 text-foreground"
+                    : "border-border bg-card/80 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className="text-base leading-none" aria-hidden>{c.flag}</span>
+                <span>{c.name.split(" / ")[0]}</span>
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground whitespace-nowrap shrink-0"
+          >
+            <Globe2 className="h-3.5 w-3.5" />
+            All
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 -mx-4 px-4">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -41,39 +75,9 @@ export function CountrySelector({ value, onChange }: Props) {
           <span className="truncate max-w-[120px]">{current.name}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0" />
         </button>
-
         <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground px-1 shrink-0">
           from
         </span>
-
-        {quick.map((c) => {
-          const active = c.code === value;
-          return (
-            <button
-              key={c.code}
-              type="button"
-              onClick={() => onChange(c.code)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap transition-all shrink-0",
-                active
-                  ? "border-foreground bg-foreground/10 text-foreground"
-                  : "border-border bg-card/80 text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <span className="text-base leading-none" aria-hidden>{c.flag}</span>
-              <span>{c.name.split(" / ")[0]}</span>
-            </button>
-          );
-        })}
-
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground whitespace-nowrap shrink-0"
-        >
-          <Globe2 className="h-3.5 w-3.5" />
-          All
-        </button>
       </div>
 
       <AnimatePresence>

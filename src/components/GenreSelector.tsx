@@ -17,6 +17,7 @@ export function GenreSelector({ value, onChange }: Props) {
   const quick = GENRES.filter((g) => QUICK_IDS.includes(g.id)).sort(
     (a, b) => QUICK_IDS.indexOf(a.id) - QUICK_IDS.indexOf(b.id),
   );
+  const marqueeGenres = [...GENRES, ...GENRES];
 
   const handlePick = (id: string) => {
     onChange(id);
@@ -58,17 +59,17 @@ export function GenreSelector({ value, onChange }: Props) {
         </button>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4 scrollbar-none">
-        <div className="flex gap-1.5 w-max pb-1">
-          {quick.map((g) => {
+      <div className="relative overflow-hidden -mx-4 px-4">
+        <div className="marquee-track flex w-max items-center gap-2 py-1">
+          {[...quick, ...quick].map((g, index) => {
             const active = g.id === value;
             return (
               <button
-                key={g.id}
+                key={`${g.id}-${index}`}
                 type="button"
                 onClick={() => onChange(g.id)}
                 className={cn(
-                  "relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all whitespace-nowrap border",
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold whitespace-nowrap shrink-0",
                   active
                     ? "border-foreground bg-foreground text-background shadow-sm"
                     : "border-border bg-card/80 text-foreground hover:bg-card",
@@ -79,13 +80,13 @@ export function GenreSelector({ value, onChange }: Props) {
               </button>
             );
           })}
-
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:border-foreground whitespace-nowrap shrink-0"
           >
-            <Sparkles className="h-3 w-3" /> All genres
+            <Sparkles className="h-3 w-3" />
+            All genres
           </button>
         </div>
       </div>
@@ -127,19 +128,18 @@ export function GenreSelector({ value, onChange }: Props) {
                   type="button"
                   onClick={() => setOpen(false)}
                   className="h-9 w-9 rounded-full bg-muted hover:bg-muted/70 flex items-center justify-center shrink-0"
-                  aria-label="Close"
+                  aria-label="Close genres dialog"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 overflow-y-auto">
-                {GENRES.map((g) => {
+                {marqueeGenres.map((g, index) => {
                   const active = g.id === value;
-
                   return (
                     <motion.button
-                      key={g.id}
+                      key={`${g.id}-${index}`}
                       type="button"
                       onClick={() => handlePick(g.id)}
                       whileTap={{ scale: 0.96 }}

@@ -1,4 +1,4 @@
-# 🎵 TuneSwipe
+# 🎵 SoundSwipe
 
 TuneSwipe is a sleek music discovery app built with React, TypeScript, and Tailwind CSS. It blends a Tinder-like swipe flow with a record-collector vibe to help users discover new songs, save favorites, and build a personal library of tracks they actually love.
 
